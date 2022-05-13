@@ -1,0 +1,3 @@
+trace_cmd_suffix: "hypercall checkpoint 1 && mkdir /mnt/mydir && sync && hypercall checkpoint 2 && sleep 1.1 && rmdir /mnt/mydir && sync && hypercall checkpoint 3"
+checkpoint_range: [1, 3]
+dump_cmd_suffix: "if [ -e /mnt/mydir ] ; then echo -n hoho > /mnt/mydir/file ; else echo -n test > /mnt/mydir ; fi && echo -n test > /mnt/myfile && rm -r /mnt/*"

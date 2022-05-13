@@ -1,0 +1,3 @@
+trace_cmd_suffix: "mkdir /mnt/newdir && sync && hypercall checkpoint 1 && mkdir /mnt/newdir2 && sync && hypercall checkpoint 2 && echo -n test > /mnt/newdir/testfile && sync && hypercall checkpoint 3 && mv /mnt/newdir /mnt/newdir2 && sync && hypercall checkpoint 4"
+checkpoint_range: [1, 4]
+dump_cmd_suffix: "echo test >> /mnt/myfile && if [ -f /mnt/newdir2/newdir/testfile ] ; then echo test >> /mnt/newdir2/newdir/testfile ; else true ; fi && rm -r /mnt/*"

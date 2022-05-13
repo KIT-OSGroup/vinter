@@ -1,0 +1,3 @@
+[submodule "panda"]
+	path = panda
+	url = https://github.com/KIT-OSGroup/panda

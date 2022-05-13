@@ -1,0 +1,16 @@
+[package]
+name = "vinter_trace"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+vinter_common = { path = "../vinter_common" }
+
+anyhow = "1.0"
+crossbeam-channel = "0.5"
+lazy_static = "1.4"
+panda-re = "0.33.0"
+iced-x86 = { version = "1.16.0", default-features = false, features = ["std", "decoder"] }

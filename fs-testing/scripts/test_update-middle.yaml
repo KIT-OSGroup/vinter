@@ -1,0 +1,5 @@
+# update part of file
+# MjOf1E3x18E3R5EP6hq7WjzALMtjsAXY is 32 bytes (so that we do not trigger NOVA unaligned unpersisted bug)
+trace_cmd_suffix: 'for i in `seq 71` ; do printf MjOf1E3x18E3R5EP6hq7WjzALMtjsAXY ; done > /mnt/myfile && sync && hypercall checkpoint 1 && echo -n hohoho | dd of=/mnt/myfile seek=171 bs=6 conv=notrunc && hypercall checkpoint 2 && sync && hypercall checkpoint 3'
+checkpoint_range: [1, 3]
+dump_cmd_suffix: "echo test >> /mnt/myfile && rm -r /mnt/*"

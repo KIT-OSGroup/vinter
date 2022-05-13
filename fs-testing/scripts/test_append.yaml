@@ -1,0 +1,5 @@
+# also check atomic ctime/mtime update
+trace_cmd_suffix: "echo -n test > /mnt/myfile && sync && hypercall checkpoint 1 && sleep 2 && echo -n appendedalignedtext01234 >> /mnt/myfile && sync && hypercall checkpoint 2"
+# old test: `&& umount /mnt && sync && hypercall checkpoint 3`
+checkpoint_range: [1, 2]
+dump_cmd_suffix: "echo test >> /mnt/myfile && rm -r /mnt/*"

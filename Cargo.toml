@@ -1,0 +1,14 @@
+[workspace]
+members = [
+	"vinter_rust/vinter_common",
+	"vinter_rust/vinter_trace",
+	"vinter_rust/vinter_trace2img",
+	"vinter_rust/vinter_report",
+]
+exclude = [
+	# Needs to be built with musl.
+	"fs-testing/fs-dump",
+]
+
+[profile.release]
+debug = true

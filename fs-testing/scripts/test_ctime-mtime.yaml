@@ -1,0 +1,4 @@
+# touch with old timestamp first to trick relatime feature
+trace_cmd_suffix: "mkdir /mnt/mydir && touch /mnt/mydir/myfile && touch -d '2020-01-01 00:00:00' /mnt/mydir && sync && hypercall checkpoint 1 && sleep 2 && rm /mnt/mydir/myfile && sync && hypercall checkpoint 2"
+checkpoint_range: [1, 2]
+dump_cmd_suffix: "echo test >> /mnt/myfile && if [ -e /mnt/mydir ] ; then echo test >> /mnt/mydir/myfile ; else true ; fi && rm -r /mnt/*"

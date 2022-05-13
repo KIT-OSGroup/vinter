@@ -1,0 +1,10 @@
+[package]
+name = "vinter_common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+bincode = "2.0.0-rc"
+hex = "0.4.3"
+snap = "1.0.5"

@@ -1,0 +1,17 @@
+commands:
+  trace_cmd_prefix: 'mkfs.ext4 -b 4096 /dev/pmem0 && mount -o dax /dev/pmem0 /mnt && sync'
+  # fsck exits with error if the filesystem is corrupted
+  recovery_cmd: 'fsck.ext4 -p /dev/pmem0; mount -o dax,ro /dev/pmem0 /mnt; ls -lah /mnt && ( [ ! -f /mnt/myfile ] || cat /mnt/myfile ) && fs-dump --contents /mnt > /dev/null && hypercall success'
+  dump_cmd_prefix: 'fsck.ext4 -p /dev/pmem0; mount -o dax,ro /dev/pmem0 /mnt && fs-dump --contents /mnt && umount /mnt && mount -o dax /dev/pmem0 /mnt'
+vm:
+  pmem_start: 134217728 # 128 * 2**20
+  pmem_len: 8388608 # 8 * 2**20
+  mem: '256M'
+  prompt: '(/ # |.*---\[ end trace )' # note that the latter cuts of a bit from kernel stack traces, but we can live with that. Put everything in brackets because panda_expect.py runs `self.expectation_ends_re = re.compile(r'(.*)' + expectation)` and uses the first group
+  qemu_args: [
+    '-cpu', 'max,fsgsbase=off', # enable clwb, clflushopt
+    '-append', 'console=ttyS0,115200n8 memmap=8M!128M loglevel=1',
+   ]
+  kernel: '../linux/mainline_build/arch/x86/boot/bzImage'
+  initrd: '../initramfs/initramfs_mainline.cpio.gz'
+  system_map: 'linux/mainline_build/System.map'

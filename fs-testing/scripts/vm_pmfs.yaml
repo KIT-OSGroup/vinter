@@ -1,0 +1,17 @@
+commands:
+  trace_cmd_prefix: 'mount -t pmfs -o physaddr=0x8000000,init=5M none /mnt && sync'
+  recovery_cmd: 'mount -oro,physaddr=0x8000000 -tpmfs none /mnt && ls -lah /mnt && ( [ ! -f /mnt/myfile ] || cat /mnt/myfile ) && fs-dump --contents /mnt > /dev/null && hypercall success'
+  dump_cmd_prefix: 'mount -oro,physaddr=0x8000000 -tpmfs none /mnt && fs-dump --contents /mnt && umount /mnt && mount -ophysaddr=0x8000000 -tpmfs none /mnt'
+vm:
+  pmem_start: 134217728 # 128 * 2**20
+  pmem_len: 5242880 # 5 * 2**20
+  mem: '134M'
+  prompt: '/ # '
+  qemu_args: [
+    '-cpu', 'max,fsgsbase=off', # enable clwb, clflushopt
+    # note we use $ here in memmap because this kernel does not yet support pmem emulation
+    '-append', 'console=ttyS0,115200n8 memmap=5M$128M loglevel=1',
+   ]
+  kernel: '../linux/pmfs_build/arch/x86/boot/bzImage'
+  initrd: '../initramfs/initramfs_pmfs.cpio.gz'
+  system_map: '../linux/pmfs_build/System.map'

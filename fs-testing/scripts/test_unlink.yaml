@@ -1,0 +1,3 @@
+trace_cmd_suffix: "echo -n test > /mnt/myfile && sync && hypercall checkpoint 1 && rm /mnt/myfile && sync && hypercall checkpoint 2"
+checkpoint_range: [1, 2]
+dump_cmd_suffix: "echo test > /mnt/myfile && rm -r /mnt/*"

@@ -1,0 +1,17 @@
+commands:
+  trace_cmd_prefix: 'mount -tNOVA -oinit /dev/pmem0 /mnt && sync'
+  recovery_cmd: 'mount -oro -tNOVA /dev/pmem0 /mnt && ls -lah /mnt && ( [ ! -f /mnt/myfile ] || cat /mnt/myfile ) && fs-dump --contents /mnt > /dev/null && hypercall success'
+  dump_cmd_prefix: 'mount -oro -tNOVA /dev/pmem0 /mnt && fs-dump --contents /mnt && umount /mnt && mount -tNOVA /dev/pmem0 /mnt'
+vm:
+  pmem_start: 134217728 # 128 * 2**20
+  pmem_len: 5242880 # 5 * 2**20
+  mem: '134M'
+  prompt: '(/ # |.*---\[ end trace )' # note that the latter cuts of a bit from kernel stack traces, but we can live with that. Put everything in brackets because panda_expect.py runs `self.expectation_ends_re = re.compile(r'(.*)' + expectation)` and uses the first group
+  qemu_args: [
+    '-cpu', 'max,fsgsbase=off', # enable clwb, clflushopt
+    '-append', 'console=ttyS0,115200n8 memmap=5M!128M memmap=123M!133M loglevel=1',
+    # ^ kernel enforces alignment at 128 MiB (https://elixir.bootlin.com/linux/v5.1/source/kernel/memremap.c#L157), and within one 128 MiB block, it may not overlap with other memory such as system RAM for it to be mapped as /dev/pmem0 (https://elixir.bootlin.com/linux/v5.1/source/kernel/memremap.c#L180).
+  ]
+  kernel: '../linux/nova_build/arch/x86/boot/bzImage'
+  initrd: '../initramfs/initramfs.cpio.gz'
+  system_map: '../linux/nova_build/System.map'

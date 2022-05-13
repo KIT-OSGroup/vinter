@@ -1,0 +1,23 @@
+commands:
+  # Create zpool, mount its dataset, perform a sync write to initialize ZIL,
+  # freeze pool so that writes to go only to ZIL.
+  # ncommitters=1 to make sure we get away with only one chunk
+  # see slog replay test in ZFS
+  trace_cmd_prefix: 'echo 1 > /sys/module/zfs/parameters/zfs_zil_pmem_prb_ncommitters && zpool create -O mountpoint=legacy testpool /dev/pmem1 log dax:/dev/pmem0 && mount -t zfs testpool /mnt && dd if=/dev/zero of=/mnt/sync conv=fsync bs=1 count=1 && zpool freeze testpool'
+  # Recovery: Import pool read-write to allow replay, then mount dataset read-only. 
+  recovery_cmd: 'echo 1 > /sys/module/zfs/parameters/zfs_zil_pmem_prb_ncommitters && zpool import testpool && mount -t zfs -oro testpool /mnt && ls -lah /mnt && ( [ ! -f /mnt/myfile ] || cat /mnt/myfile ) && fs-dump --contents /mnt > /dev/null && hypercall success'
+  # reduce linux console level to prevent garbage in the output
+  dump_cmd_prefix: 'echo 1 > /proc/sys/kernel/printk && echo 1 > /sys/module/zfs/parameters/zfs_zil_pmem_prb_ncommitters && zpool import testpool && mount -t zfs -oro testpool /mnt && fs-dump --contents /mnt && umount /mnt && mount -t zfs testpool /mnt'
+vm:
+  # Create two consecutive PMEM devices for the ZFS pool and the ZIL.
+  pmem_start: 536870912 # 512 * 2**20
+  pmem_len:   268435456 # 256 * 2**20
+  mem: '1G'
+  prompt: '(/ # |.*---\[ end trace )' # note that the latter cuts of a bit from kernel stack traces, but we can live with that. Put everything in brackets because panda_expect.py runs `self.expectation_ends_re = re.compile(r'(.*)' + expectation)` and uses the first group
+  qemu_args: [
+    '-cpu', 'max,fsgsbase=off', # enable clwb, clflushopt, disable fsgsbase to avoid crash
+    '-append', 'console=ttyS0,115200n8 memmap=128M!512M memmap=128M!640M',
+  ]
+  kernel: '../zil-pmem/linux_build/arch/x86/boot/bzImage'
+  initrd: '../initramfs/initramfs_zilpmem.cpio.gz'
+  system_map: '../zil_pmem/linux_build/System.map'

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t devtmpfs none /dev
+
+if [ -d /init.d ]; then
+  for f in /init.d/*; do
+    . "$f"
+  done
+fi
+
+exec /bin/sh
