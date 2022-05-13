@@ -41,16 +41,7 @@ echo " => root password: $password"
 echo "root:$password" | sudo chroot "$mountpath" /usr/sbin/chpasswd || fail "could not set root password"
 echo " => copying repositories"
 sudo mkdir "$mountpath/home/vinter"
-sudo git clone "$vinterdir" --single-branch "$mountpath/home/vinter/vinter"
-sudo git clone "$vinterdir/panda" --single-branch "$mountpath/home/vinter/vinter/panda"
-sudo git clone "$vinterdir/fs-testing/linux/nova" --bare --single-branch -b vinter-nova "$mountpath/home/vinter/linux.git"
-sudo git -C "$mountpath/home/vinter/linux.git" fetch "$vinterdir/fs-testing/linux/pmfs" vinter-pmfs:vinter-pmfs
-sudo git -C "$mountpath/home/vinter/linux.git" worktree add "$mountpath/home/vinter/fs-testing/linux/nova" vinter-nova
-sudo git -C "$mountpath/home/vinter/linux.git" worktree add "$mountpath/home/vinter/fs-testing/linux/pmfs" vinter-pmfs
-# set public upstream URLs
-sudo git -C "$mountpath/home/vinter/vinter" remote set-url origin https://github.com/KIT-OSGroup/vinter
-sudo git -C "$mountpath/home/vinter/vinter/panda" remote set-url origin https://github.com/KIT-OSGroup/panda
-sudo git -C "$mountpath/home/vinter/linux.git" remote set-url origin https://github.com/KIT-OSGroup/linux
+sudo cp "$scriptdir/install-vinter.sh" "$mountpath/home/vinter"
 
 cleanup
 
