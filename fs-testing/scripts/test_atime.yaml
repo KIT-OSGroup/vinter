@@ -1,5 +1,5 @@
 # atomically update access time
-# touch with old timestamp first to trick relatime feature
-trace_cmd_suffix: "echo -n test > /mnt/myfile && touch -d '2020-01-01 00:00:00' /mnt/myfile && sync && hypercall checkpoint 1 && sleep 2 && cat /mnt/myfile > /dev/null && sync && hypercall checkpoint 2"
+# touch with old timestamp first to trick relatime feature on pmfs, but not on NOVA because things are weird
+trace_cmd_suffix: "echo -n test > /mnt/myfile && ( if mount | grep -q NOVA ; then true ; else touch -d '2020-01-01 00:00:00' /mnt/myfile ; fi ) && sync && hypercall checkpoint 1 && sleep 2 && cat /mnt/myfile > /dev/null && sync && hypercall checkpoint 2"
 checkpoint_range: [1, 2]
 dump_cmd_suffix: "echo test >> /mnt/myfile && rm -r /mnt/*"
