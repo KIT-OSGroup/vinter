@@ -32,7 +32,10 @@ installed. See "Artifact Evaluation" below.
 ```sh
 # install dependencies
 # on Fedora:
-sudo dnf install python3-pip python3-mypy python3-capstone glibc-static elfutils-libelf-devel dtc capstone-devel libdwarf-devel glib2-devel pixman-devel protobuf-devel protobuf-c-devel curl-devel jsoncpp-devel chrpath datamash telnet
+sudo dnf install python3-pip python3-mypy python3-capstone glibc-static \
+	elfutils-libelf-devel dtc capstone-devel libdwarf-devel glib2-devel \
+	pixman-devel protobuf-devel protobuf-c-devel curl-devel jsoncpp-devel \
+	chrpath datamash telnet
 pip install yq sortedcontainers
 
 # Rust via rustup (see https://rustup.rs)
@@ -50,7 +53,8 @@ fs-testing/linux/build-kernel.sh nova
 
 git clone https://github.com/linux-pmfs/pmfs fs-testing/linux/pmfs
 # Note: Building PMFS requires gcc4, build from a suitable container. For example:
-podman run --rm -v"$PWD/fs-testing/linux:/mnt" docker.io/library/gcc:4 sh -c 'apt-get update && apt-get install bc && /mnt/build-kernel.sh pmfs'
+podman run --rm -v"$PWD/fs-testing/linux:/mnt" docker.io/library/gcc:4 \
+	sh -c 'apt-get update && apt-get install bc && /mnt/build-kernel.sh pmfs'
 
 ```
 

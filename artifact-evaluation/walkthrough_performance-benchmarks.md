@@ -12,7 +12,7 @@ fs-testing/scripts/script_run-paper-benchmark.sh
 The benchmark may take between 30 and 60 minutes to complete and writes its
 files to `results_paper-benchmark`.
 
-Its final output should be similar to the following:
+Its final output should be similar to the following (only placeholder values listed here):
 ```
 == Figure 8 (pmemtrace.py) results ==
                                                count  mean               sstdev
@@ -38,6 +38,8 @@ and result in 7 unique semantic crash states.
 
 success
 ```
+
+NOTE: The benchmark results listed in the paper PDF are not yet up to date with the latest artifact version. The differences are not big though.
 
 The tables should approximately reproduce the numbers in Figure 8 and Figure 9 (depending on the hardware used).
 The paragraph at the end of the output should further contain the same numbers as the corresponding sentence in §6.3.

@@ -12,7 +12,8 @@ its analysis in parallel, so make sure to provide plenty of memory (`-m`) and
 vCPUs (`-smp`). As a rough guideline, provide 2 GB of memory per vCPU. For
 example with QEMU/KVM:
 ```
-qemu-kvm -m 16G -smp 8 -display none -serial mon:stdio -device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::2222-:22 vinter.qcow2
+qemu-kvm -m 16G -smp 8 -display none -serial mon:stdio -device e1000,netdev=net0 \
+    -netdev user,id=net0,hostfwd=tcp::2222-:22 vinter.qcow2
 ```
 
 Connect to the virtual machine via SSH. The password for the users vinter and
@@ -35,8 +36,10 @@ fs-testing/scripts/run_getting-started.sh
 The script will put results into the directory `results_getting-started`. View
 a short summary of these results with the following commands:
 ```
-vinter_python/report-results.py analyze results_getting-started/vinter_python/vm_nova/getting-started/test_hello-world
-vinter_python/report-results.py analyze results_getting-started/vinter_python/vm_pmfs/getting-started/test_hello-world
+vinter_python/report-results.py analyze \
+    results_getting-started/vinter_python/vm_nova/getting-started/test_hello-world
+vinter_python/report-results.py analyze \
+    results_getting-started/vinter_python/vm_pmfs/getting-started/test_hello-world
 ```
 
 You can see that Vinter reports a violation of *single final state* for the
