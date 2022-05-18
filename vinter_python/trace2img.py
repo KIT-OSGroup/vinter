@@ -43,7 +43,7 @@ class MemoryReplayer:
                       read_callback: Callable[[int, int, int, bytes], None] = None,
                       hypercall_callback: Callable[[int, str, str], None] = None
                      ) -> int:  # returns last used ID
-        address: Optional[int]
+        address: int
         with fileinput.FileInput(files=files) as input:
             for entry in parse_trace(input, self.offset):
                 operation, id_ = entry[:2]
@@ -97,13 +97,13 @@ class CrashMetaData:
     persistence_type: CrashPersistenceType
 
     # for STRICT_SUBSET_PERSISTED:
-    strict_subset_lines: Optional[List[int]] = None  # stores all writes that were considered
+    strict_subset_lines: Optional[Sequence[int]] = None  # stores all writes that were considered
     partial_write_indices: Optional[Sequence[int]] = None
 
     # for FULLY_PERSISTED and STRICT_SUBSET_PERSISTED:
     # Stores all lines that are part of the image, but not properly persisted.
     # We need those to figure out whether a subset image is still relevant at a later fence.
-    dirty_lines: Optional[List[int]] = None
+    dirty_lines: Optional[Sequence[int]] = None
 
 class PostRecoveryDump(NamedTuple):
     output: str
@@ -124,7 +124,7 @@ class CrashImage:
 
     heuristic: HeuristicState = HeuristicState.NOT_CONSIDERED
     # for HEURISTIC_APPLIED:
-    heuristic_images: Optional[List['CrashImage']] = None
+    heuristic_images: List['CrashImage'] = dataclasses.field(default_factory=list)
     read_lines: Optional[int] = None
 
 
@@ -219,7 +219,6 @@ class HeuristicCrashImageGenerator:
 
                 if fully_persisted_img.heuristic == HeuristicState.NOT_CONSIDERED:
                     fully_persisted_img.heuristic = HeuristicState.HEURISTIC_APPLIED
-                    fully_persisted_img.heuristic_images = list()
                     self.tracer.load_snapshot('boot')
                     self.tracer.load_pmem_image(fully_persisted_mem_bytes)
                     with tempfile.NamedTemporaryFile('w+') as post_failure_trace:
@@ -411,8 +410,8 @@ class HeuristicCrashImageGenerator:
         img_items = imgs.items()
         # First, assign a name to all images.
         for i, (img, crash_img) in enumerate(img_items):
-            with open(f'{generated_img_dir}/img{i}', 'wb') as f:
-                f.write(img)
+            with open(f'{generated_img_dir}/img{i}', 'wb') as img_file:
+                img_file.write(img)
             crash_img.filename = f'img{i}'
         # Then, we can refer to these names in 'heuristic_images'
         for i, (img, crash_img) in enumerate(img_items):
@@ -437,9 +436,9 @@ class HeuristicCrashImageGenerator:
                             }},
                     } for cmd in crash_img.originating_crashes],
             }
-            with open(f'{generated_img_dir}/dump{i}', 'w') as f:
+            with open(f'{generated_img_dir}/dump{i}', 'w') as dump_file:
                 assert(crash_img.post_recovery_dump is not None)
-                f.write(crash_img.post_recovery_dump.output)
+                dump_file.write(crash_img.post_recovery_dump.output)
             assert(isinstance(crash_img.post_recovery_dump, PostRecoveryDump))  # for mypy
             results_by_dump[crash_img.post_recovery_dump].append(crash_img)
             for crash in crash_img.originating_crashes:

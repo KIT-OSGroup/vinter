@@ -145,7 +145,7 @@ class PersistentMemoryTracer(ContextManager):
 
         insn = self.disas_cache.get(physical_address)
         if not insn:
-            mem = None
+            mem = b''
             try:
                 mem = self.panda.physical_memory_read(physical_address, size)
                 _, _, mnemonic, op_str = next(self.cs.disasm_lite(mem, 0))
