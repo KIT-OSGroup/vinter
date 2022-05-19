@@ -31,9 +31,7 @@ class PersistentMemoryTracer(ContextManager):
     pmem_start: int  # physical address
     pmem_length: int
     panda: pandare.Panda
-    disas_cache: Dict[int, DisassembledInsn]  # maps physical address to DisassembledInsn
-    # TODO ^ Does not consider changing memory/code. For a correct implementation, we should probably clean this after basic block flushes etc.
-    #        (though for hooking probably not necessary, as our post-instruction-execution hook is only called if we have trapped a wanted instruction)
+    disas_cache: Dict[bytes, DisassembledInsn]
     trace_out: IO[Any]
     trace_metadata: bool
     _tracing: bool
@@ -67,7 +65,7 @@ class PersistentMemoryTracer(ContextManager):
         self.debug_file = debug_file
         self.X64_REGISTERS = list(map(str.lower, self.panda.arch.registers.keys()))
         self.cs = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
-        self.disas_cache = {}  # maps physical address to DisassembledInsn
+        self.disas_cache = {}
         self.trace_out = trace_out
         self.trace_metadata = trace_metadata
         self._tracing = False
@@ -140,30 +138,27 @@ class PersistentMemoryTracer(ContextManager):
         # TODO bug when address is very small (i.e. < first entry), then it chooses last entry
         return self.kallsyms.peekitem(self.kallsyms.bisect_right(address) - 1)[1]
 
-    def disas_physical_address(self, physical_address: int, size: int = X64_MAX_INSN_LEN) -> DisassembledInsn:
-        # TODO this function breaks if the virtual address range crosses a page boundary. We would need to be passed the virtual address to fix it (to read from 2 physical pages). (We currently have assertions in place in callees of disas_physical_address.)
-
-        insn = self.disas_cache.get(physical_address)
+    def disas_virtual_address(self, cpu_state, address: int, size: int = X64_MAX_INSN_LEN) -> DisassembledInsn:
+        mem = self.panda.virtual_memory_read(cpu_state, address, size)
+        insn = self.disas_cache.get(mem)
         if not insn:
-            mem = b''
             try:
-                mem = self.panda.physical_memory_read(physical_address, size)
                 _, _, mnemonic, op_str = next(self.cs.disasm_lite(mem, 0))
                 insn = DisassembledInsn(mnemonic, op_str)
                 # (note that if we use the on_after callback, the above code might be wrong for self-modifying code)
             except StopIteration:
                 # rdpkru and wrpkru not supported by capstone: https://github.com/aquynh/capstone/issues/1076
-                if mem == b'\x0f\x01\xee':
+                if mem.startswith(b'\x0f\x01\xee'):
                     insn = DisassembledInsn('rdpkru', '')
-                elif mem == b'\x0f\x01\xef':
+                elif mem.startswith(b'\x0f\x01\xef'):
                     insn = DisassembledInsn('wrpkru', '')
-                elif mem == b'\xf3\x48\x0f\x1e\xc8': # Intel CET will be in capstone v5 (#1346)
+                elif mem.startswith(b'\xf3\x48\x0f\x1e\xc8'): # Intel CET will be in capstone v5 (#1346)
                     insn = DisassembledInsn('rdsspq', 'rax')
-                elif mem == b'\xf3\x48\x0f\x1e\xce':
+                elif mem.startswith(b'\xf3\x48\x0f\x1e\xce'):
                     insn = DisassembledInsn('rdsspq', 'rsi')
                 else:
                     raise RuntimeError(f'could not disassemble instruction: {mem.hex() if mem else "not mem"}')
-            self.disas_cache[physical_address] = insn
+            self.disas_cache[mem] = insn
         return insn
 
     def _metadata_str(self, cpu_state) -> str:
@@ -189,12 +184,7 @@ class PersistentMemoryTracer(ContextManager):
 
             # profile_pmem_write.enable()
             pc = cpu_state.panda_guest_pc  # available because of `self.panda.enable_precise_pc()` (`self.panda.arch.get_pc(cpu_state)` would be imprecise pc)
-            physical_pc = self.panda.virt_to_phys(cpu_state, pc)
-            # TODO check physical_pc for -1 (also in other places where we use virt_to_phys)
-            insn = self.disas_physical_address(physical_pc)
-            if physical_pc // 4096 != (physical_pc + self.X64_MAX_INSN_LEN - 1) // 4096 and \
-                    physical_pc // 4096 != self.panda.virt_to_phys(cpu_state, pc + self.X64_MAX_INSN_LEN - 1) // 4096 - 1:
-                breakpoint()  # bug in disas_physical_address triggered: page boundary crossed but not consecutively mapped to physical memory (we should read from virtual memory instead and let panda handle the rest)
+            insn = self.disas_virtual_address(cpu_state, pc)
             mnemonic = insn.mnemonic
             if self.debug_file:
                 insn_str = f'{mnemonic} {insn.op_str}'
@@ -221,11 +211,7 @@ class PersistentMemoryTracer(ContextManager):
             print(f'read,{memory_access_desc.addr},{memory_access_desc.size},{bytes(memory_access_desc.buf[0:memory_access_desc.size]).hex()}', file=self.trace_out)
 
             if self.debug_file:
-                insn = self.disas_physical_address(self.panda.virt_to_phys(cpu_state, cpu_state.panda_guest_pc))
-                if cpu_state.panda_guest_pc // 4096 != (cpu_state.panda_guest_pc + self.X64_MAX_INSN_LEN - 1) // 4096 and \
-                        self.panda.virt_to_phys(cpu_state, cpu_state.panda_guest_pc) // 4096 != self.panda.virt_to_phys(cpu_state, cpu_state.panda_guest_pc + self.X64_MAX_INSN_LEN - 1) // 4096 - 1:
-                    breakpoint()  # bug in disas_physical_address triggered: page boundary crossed but not consecutively mapped to physical memory (we should read from virtual memory instead and let panda handle the rest)
-
+                insn = self.disas_virtual_address(cpu_state, cpu_state.panda_guest_pc)
                 insn_str = f'{insn.mnemonic} {insn.op_str}'
                 kernel_symbol = self.get_kernel_symbol(cpu_state.panda_guest_pc)
                 self._debug(f'read from {cpu_state.panda_guest_pc:#x} to {memory_access_desc.addr:#x} size {memory_access_desc.size} insn `{insn_str}` in_kernel_code_linux={self.panda.in_kernel_code_linux(cpu_state)} content {bytes(memory_access_desc.buf[0:memory_access_desc.size])!r}{" " + kernel_symbol if self.panda.in_kernel_code_linux(cpu_state) else ""}')
@@ -244,13 +230,8 @@ class PersistentMemoryTracer(ContextManager):
         def pmem_after_insn_translate(cpu_state, pc, previous_pc):
             # note that this is probably not called for jump instructions (which we don't care about anyway)
             # assert(self.pc_before_translate == previous_pc)  # appears successful
-            physical_previous_pc = self.panda.virt_to_phys(cpu_state, previous_pc)
             assert(pc > previous_pc)
-            insn = self.disas_physical_address(physical_previous_pc, pc - previous_pc)
-
-            if physical_previous_pc // 4096 != (physical_previous_pc + pc - previous_pc - 1) // 4096 and \
-                    physical_previous_pc // 4096 != self.panda.virt_to_phys(cpu_state, pc - 1) // 4096 - 1:
-                breakpoint()  # bug in disas_physical_address triggered: page boundary crossed but not consecutively mapped to physical memory (we should read from virtual memory instead and let panda handle the rest)
+            insn = self.disas_virtual_address(cpu_state, previous_pc, pc - previous_pc)
 
             # TODO support instruction prefixes such as LOCK and support LOCK-prefixed instructions
             # TODO INVD would need to be hooked as it clears caches without writing back
@@ -265,7 +246,7 @@ class PersistentMemoryTracer(ContextManager):
 
         @self.panda.cb_after_insn_exec(enabled=False)
         def pmem_after_insn_exec(cpu_state, pc, previous_pc):
-            insn = self.disas_cache[self.panda.virt_to_phys(cpu_state, previous_pc)]
+            insn = self.disas_virtual_address(cpu_state, previous_pc)
             operand_str = ''
             physical_address = ''
 
