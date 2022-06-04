@@ -15,7 +15,7 @@ setup_root() {
 	echo vinter | passwd --stdin vinter
 	chown -R vinter:vinter /home/vinter
 
-	dnf install -y '@C Development Tools and Libraries' podman git zip zstd bc time jq qemu-img python3-pip python3-mypy python3-capstone glibc-static elfutils-libelf-devel dtc capstone-devel libdwarf-devel glib2-devel pixman-devel protobuf-devel protobuf-c-devel curl-devel jsoncpp-devel chrpath datamash telnet
+	dnf install -y '@C Development Tools and Libraries' podman git zip zstd bc time jq qemu-img python3-pip python3-mypy python3-capstone glibc-static elfutils-libelf-devel dtc capstone-devel libdwarf-devel glib2-devel pixman-devel protobuf-devel protobuf-c-devel curl-devel jsoncpp-devel chrpath datamash nmap-ncat
 	pip install yq sortedcontainers
 
 	# Disable SELinux so that podman works.

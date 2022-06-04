@@ -35,7 +35,7 @@ installed. See "Artifact Evaluation" below.
 sudo dnf install python3-pip python3-mypy python3-capstone glibc-static \
 	elfutils-libelf-devel dtc capstone-devel libdwarf-devel glib2-devel \
 	pixman-devel protobuf-devel protobuf-c-devel curl-devel jsoncpp-devel \
-	chrpath datamash telnet
+	chrpath datamash nmap-ncat
 pip install yq sortedcontainers
 
 # Rust via rustup (see https://rustup.rs)
