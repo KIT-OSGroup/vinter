@@ -6,6 +6,9 @@ scriptdir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 base=$scriptdir/../..
 results=results
 
+mkdir -p "$results"
+cd "$results"
+
 usage() {
 	echo "Usage: $script [options] <identifier>"
 	echo "Options:"
