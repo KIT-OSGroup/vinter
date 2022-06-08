@@ -9,14 +9,16 @@ cd fs-testing/scripts
 # on the number of CPU cores and memory available on your machine.
 
 # The following executes all test cases on NOVA normally. (Might take around 10 minutes to execute depending on degree of parallelity.)
-echo test_*.yaml | xargs -n1 -P10 ../../vinter_python/trace-and-analyze.sh effectiveness_with-heuristic vm_nova.yaml
+echo test_*.yaml | xargs -n1 -P10 ../../vinter_python/trace-and-analyze.sh effectiveness_with-heuristic vm_nova.yaml ; echo $?
+# The last line of the output should be `0`. If not, the programs did not execute successfully (e.g., crash due to out of memory) and the results are likely to be inaccurate.
 
 # The following runs all test cases on NOVA while ignoring our heuristic's
 # post-failure reads, and instead considers all dirty cache lines for crash image
 # generation (but still chooses random subsets of dirty lines once a threshold
 # is exceeded).
 # (The neutralized heuristic results in more work, hence the following might take a few dozen minutes depending on degree of parallelity.)
-echo test_*.yaml | xargs -n1 -P10 ../../vinter_python/trace-and-analyze.sh --evaluate-heuristic-effectiveness effectiveness_without-heuristic vm_nova.yaml
+echo test_*.yaml | xargs -n1 -P10 ../../vinter_python/trace-and-analyze.sh --evaluate-heuristic-effectiveness effectiveness_without-heuristic vm_nova.yaml ; echo $?
+# The last line of the output should be `0`. If not, the programs did not execute successfully (e.g., crash due to out of memory) and the results are likely to be inaccurate.
 ```
 
 Now we count the total number of (already deduplicated) generated crash images for both of the experiments we just ran:
