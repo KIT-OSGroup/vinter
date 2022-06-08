@@ -5,7 +5,7 @@ binaries for Vinter as well as the kernels we tested in the paper.
 
 ## Getting Started Instructions
 
-Download the virtual machine image `vinter.qcow2`.
+Download the virtual machine image `vinter.qcow2` [from doi:10.5281/zenodo.6544868](https://doi.org/10.5281/zenodo.6544868).
 
 Start the virtual machine in a suitable hypervisor. Vinter can optionally run
 its analysis in parallel, so make sure to provide plenty of memory (`-m`) and

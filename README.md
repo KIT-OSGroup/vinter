@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6544868.svg)](https://doi.org/10.5281/zenodo.6544868)
+
 # Vinter: Automatic Non-Volatile Memory Crash Consistency Testing for Full Systems
 
 This is the source code of Vinter, a tool for automated NVM crash consistency testing.
