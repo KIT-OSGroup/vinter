@@ -1,4 +1,5 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6544868.svg)](https://doi.org/10.5281/zenodo.6544868)
+<img src="misc/vinter_logo.svg" align="right">
 
 # Vinter: Automatic Non-Volatile Memory Crash Consistency Testing for Full Systems
 
