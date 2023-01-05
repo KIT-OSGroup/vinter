@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -100,11 +100,12 @@ pub enum CrashPersistenceType {
     /// Image with no pending writes persisted.
     NothingPersisted,
     /// Image with all pending writes persisted.
-    FullyPersisted,
+    FullyPersisted { dirty_lines: Vec<usize> },
     /// Image with a subset of all writes persisted.
     StrictSubsetPersisted {
         strict_subset_lines: Vec<usize>,
         partial_write_indices: Vec<usize>,
+        dirty_lines: Vec<usize>,
     },
 }
 
@@ -150,6 +151,7 @@ pub enum HeuristicState {
     NotConsidered,
     /// Yes, we applied the heuristic and traced the post-recovery code.
     HeuristicApplied {
+        heuristic_images: Vec<CrashImageHash>,
         modified_lines: usize,
         read_lines: usize,
     },
@@ -200,6 +202,13 @@ fn trace_command() -> Result<Command> {
     }))
 }
 
+/// Concatenates two OsStr.
+fn concat_osstr<A: Into<OsString>, B: AsRef<OsStr> + ?Sized>(a: A, b: &B) -> OsString {
+    let mut str = a.into();
+    str.push(b);
+    return str;
+}
+
 // TODO: Make these command-line parameters.
 
 /// How many random subsets of all unflushed lines to consider when generating crash images.
@@ -241,24 +250,28 @@ impl HeuristicCrashImageGenerator {
             serde_yaml::from_reader(f).context("could not parse test config file")?
         };
         // Build full output path: <output_dir>/vm_foo/test_bar/
-        output_dir.push(
-            vm_config_path
-                .file_stem()
-                .ok_or_else(|| anyhow!("invalid VM config file name"))?,
-        );
-        output_dir.push(
-            test_config_path
-                .file_stem()
-                .ok_or_else(|| anyhow!("invalid test config file name"))?,
-        );
+        let vm_name = vm_config_path
+            .file_stem()
+            .ok_or_else(|| anyhow!("invalid VM config file name"))?;
+        output_dir.push(vm_name);
+        let test_name = test_config_path
+            .file_stem()
+            .ok_or_else(|| anyhow!("invalid test config file name"))?;
+        output_dir.push(test_name);
         if output_dir.exists() {
             bail!("output directory {} already exists", output_dir.display());
         }
         std::fs::create_dir_all(&output_dir).context("could not create output directory")?;
-        std::fs::copy(&vm_config_path, output_dir.join("vm.yaml"))
-            .context("could not copy VM config file")?;
-        std::fs::copy(&test_config_path, output_dir.join("test.yaml"))
-            .context("could not copy test config file")?;
+        std::fs::copy(
+            &vm_config_path,
+            output_dir.join(concat_osstr(vm_name, ".yaml")),
+        )
+        .context("could not copy VM config file")?;
+        std::fs::copy(
+            &test_config_path,
+            output_dir.join(concat_osstr(test_name, ".yaml")),
+        )
+        .context("could not copy test config file")?;
         std::fs::create_dir(output_dir.join("crash_images"))
             .context("could not create crash_images directory")?;
         std::fs::create_dir(output_dir.join("crash_image_states"))
@@ -482,7 +495,9 @@ impl HeuristicCrashImageGenerator {
         let fully_persisted_img = image_entry!(&fully_persisted_mem);
         fully_persisted_img.originating_crashes.push(CrashMetadata {
             fence_id,
-            persistence_type: CrashPersistenceType::FullyPersisted,
+            persistence_type: CrashPersistenceType::FullyPersisted {
+                dirty_lines: mem.unpersisted_content.keys().copied().collect(),
+            },
             checkpoint_id,
         });
         let fully_persisted_img_hash = fully_persisted_img.hash;
@@ -531,6 +546,7 @@ impl HeuristicCrashImageGenerator {
                     .get_mut(&fully_persisted_img_hash)
                     .unwrap()
                     .heuristic = HeuristicState::HeuristicApplied {
+                    heuristic_images: Vec::new(),
                     modified_lines: mem.unpersisted_content.len(),
                     read_lines: unpersisted_reads_lines.len(),
                 };
@@ -545,6 +561,7 @@ impl HeuristicCrashImageGenerator {
             };
             // Do we have any unpersisted reads?
             if !unpersisted_reads_lines.is_empty() {
+                let mut heuristic_images = Vec::new();
                 let random_subsets: Vec<Vec<usize>> =
                     if unpersisted_reads_lines.len() <= MAX_UNPERSISTED_SUBSETS_LOG2 {
                         // Skip the empty set in the powerset.
@@ -594,20 +611,59 @@ impl HeuristicCrashImageGenerator {
                                 .clwb(line_number * line_granularity, Some(*flush_writes_limit));
                             subset_persisted_mem.fence_line(line_number);
                         }
-                        image_entry!(&subset_persisted_mem)
-                            .originating_crashes
-                            .push(CrashMetadata {
-                                fence_id,
-                                persistence_type: CrashPersistenceType::StrictSubsetPersisted {
-                                    strict_subset_lines: random_lines.clone(),
-                                    partial_write_indices: partial_write_indices
-                                        .iter()
-                                        .map(|&x| *x)
-                                        .collect(),
-                                },
-                                checkpoint_id,
-                            })
+                        let entry = image_entry!(&subset_persisted_mem);
+                        entry.originating_crashes.push(CrashMetadata {
+                            fence_id,
+                            persistence_type: CrashPersistenceType::StrictSubsetPersisted {
+                                strict_subset_lines: random_lines.clone(),
+                                partial_write_indices: partial_write_indices
+                                    .iter()
+                                    .map(|&x| *x)
+                                    .collect(),
+                                // Dirty lines are all lines that are not (fully) persisted in this image.
+                                // First, all lines that are not in random_lines at all.
+                                dirty_lines: mem
+                                    .unpersisted_content
+                                    .keys()
+                                    .copied()
+                                    .collect::<HashSet<_>>()
+                                    .difference(&random_lines.iter().copied().collect())
+                                    .copied()
+                                    .collect::<HashSet<_>>()
+                                    // Then, all lines that are partially included (i.e., not with all writes).
+                                    .union(
+                                        &random_lines
+                                            .iter()
+                                            .zip(partial_write_indices.iter().copied())
+                                            .filter_map(|(line, &writes_limit)| {
+                                                if mem.unpersisted_content[line].all_writes().len()
+                                                    > writes_limit
+                                                {
+                                                    Some(*line)
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .collect(),
+                                    )
+                                    .copied()
+                                    .collect(),
+                            },
+                            checkpoint_id,
+                        });
+                        heuristic_images.push(entry.hash);
                     }
+                }
+                if let HeuristicState::HeuristicApplied {
+                    heuristic_images: imgs,
+                    ..
+                } = &mut self
+                    .crash_images
+                    .get_mut(&fully_persisted_img_hash)
+                    .unwrap()
+                    .heuristic
+                {
+                    std::mem::swap(&mut heuristic_images, imgs);
                 }
             }
         }
@@ -674,7 +730,11 @@ impl HeuristicCrashImageGenerator {
                                 bail!("duplicate checkpoint id {}", last_hypercall_checkpoint);
                             }
                         }
-                        if within_checkpoint_range(last_hypercall_checkpoint) {
+                        // Create a single crash image after the checkpoint range to allow checking for SFS.
+                        if within_checkpoint_range(last_hypercall_checkpoint)
+                            || self.test_config.checkpoint_range.map(|(_start, end)| end)
+                                == Some(last_hypercall_checkpoint)
+                        {
                             self.insert_crash_image(
                                 id,
                                 &replayer_mem.borrow(),
