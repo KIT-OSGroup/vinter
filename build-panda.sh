@@ -5,4 +5,4 @@ set -x
 
 mkdir -p panda/build
 cd panda/build
-../build.sh --python x86_64-softmmu --disable-werror --disable-xen
+LLVM_CONFIG_BINARY=false ../build.sh --python x86_64-softmmu --disable-werror --disable-xen --disable-sdl --disable-gtk --disable-spice --disable-opengl
