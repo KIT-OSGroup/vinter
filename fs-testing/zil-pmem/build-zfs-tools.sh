@@ -4,16 +4,16 @@ set -eux
 
 zfs=openzfs
 
-rm -rf initramfs_zsh
-mkdir initramfs_zsh
+rm -rf initramfs_zfs
+mkdir initramfs_zfs
 
 pushd "$zfs"
 [[ -f ./configure ]] || sh ./autogen.sh
 ./configure --with-config=user
-make DESTDIR="$PWD/../initramfs_zsh" install -j$(nproc)
+make DESTDIR="$PWD/../initramfs_zfs" install -j$(nproc)
 popd
 
-pushd initramfs_zsh
+pushd initramfs_zfs
 
 # Remove unnecessary folders.
 rm -r usr/local/share

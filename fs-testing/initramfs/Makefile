@@ -25,8 +25,8 @@ initramfs_mainline.cpio.gz: $(INITRAMFS_DEPS)
 	./copy-binary.sh `which xfs_repair` initramfs_mainline
 	./create-initramfs.sh initramfs_mainline > $@
 
-initramfs_zilpmem.cpio.gz: $(INITRAMFS_DEPS) ../zil-pmem/initramfs_zsh
-	./create-initramfs.sh ../zil-pmem/initramfs_zsh > $@
+initramfs_zilpmem.cpio.gz: $(INITRAMFS_DEPS) ../zil-pmem/initramfs_zfs
+	./create-initramfs.sh ../zil-pmem/initramfs_zfs > $@
 
 busybox:
 	curl -o $@ https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox
